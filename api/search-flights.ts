@@ -1,65 +1,34 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
-import puppeteerCore from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
 
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-];
+// مفتاح SerpApi المحقون من متغيرات البيئة
+const SERPAPI_KEY = process.env.VITE_SERPAPI_API_KEY || process.env.SERPAPI_API_KEY;
 
-async function getSessionFromBrowser(browser: any, userAgent: string) {
-  const page = await browser.newPage();
+/**
+ * دالة مساعدة لتنسيق الوقت بصيغة مفهومة محلياً (مثال: 10:30 م)
+ * @param timeString النص القادم من API
+ */
+function formatTime(timeString: string | null | undefined): string {
+  if (!timeString) return 'غير محدد';
+  
   try {
-    // 1. التخفي اليدوي (Manual Evasions) لتجنب الحاجة لمكتبة StealthPlugin ومشاكل Bundling
-    await page.setUserAgent(userAgent);
-    
-    await page.evaluateOnNewDocument(() => {
-      // إخفاء خاصية webdriver
-      Object.defineProperty(navigator, 'webdriver', {
-        get: () => undefined,
-      });
-      // إيهام الموقع بوجود إضافات (plugins) كالمتصفح الحقيقي
-      Object.defineProperty(navigator, 'plugins', {
-        get: () => [1, 2, 3], 
-      });
-      // تمويه اللغات
-      Object.defineProperty(navigator, 'languages', {
-        get: () => ['ar', 'en-US', 'en'],
-      });
-    });
-
-    // الانتقال للموقع
-    await page.goto('https://sindibad.iq/', { waitUntil: 'networkidle2', timeout: 30000 });
-    
-    // الانتظار قليلاً لضمان تحميل الـ Token
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // استخراج accept-token
-    const token = await page.evaluate(() => {
-      const meta = document.querySelector('meta[name="accept-token"]');
-      if (meta) return meta.getAttribute('content');
-      
-      if ((window as any).__TOKEN__) return (window as any).__TOKEN__;
-      
-      const match = document.cookie.match(/accept-token=([^;]+)/);
-      if (match) return match[1];
-      
-      return null;
-    });
-    
-    // استخراج Cookies
-    const cookiesArray = await page.cookies();
-    const cookiesString = cookiesArray.map((c: any) => `${c.name}=${c.value}`).join('; ');
-    
-    return { token, cookies: cookiesString };
-  } finally {
-    await page.close(); // إغلاق الصفحة بعد جلب البيانات
+    // بعض توقيتات SerpApi تأتي بصيغة "2024-06-15 10:00 AM"
+    // أو كنص عادي يمثل الساعة. نحاول تحويله أولاً:
+    const dateObj = new Date(timeString);
+    if (!isNaN(dateObj.getTime())) {
+      // إذا كان تاريخاً صالحاً، نحوله بتوقيت العراق/عربي
+      return dateObj.toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' });
+    }
+  } catch (e) {
+    // تجاهل أخطاء التحويل
   }
+  
+  // إذا فشل التحويل (مثلاً النص كان "10:00 AM" فقط)، نعيده كما هو
+  return timeString;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // إعدادات الـ CORS
+  // إعدادات CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -77,154 +46,132 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, message: 'Missing parameters: origin, destination, date' });
   }
 
-  let browser: any = null;
-  
+  if (!SERPAPI_KEY) {
+    return res.status(500).json({ success: false, message: 'API key is not configured' });
+  }
+
   try {
-    // 2. إعداد المتصفح باستخدام puppeteer-core فقط مع sparticuz
-    const args = [
-      ...chromium.args,
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-web-security'
-    ];
+    console.log(`[GoogleFlights] Searching from ${origin} to ${destination} on ${date}`);
     
-    browser = await puppeteerCore.launch({
-      args: args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true,
-    });
+    const serpApiUrl = 'https://serpapi.com/search.json';
+    const params = {
+      engine: 'google_flights',
+      departure_id: origin,
+      arrival_id: destination,
+      outbound_date: date,
+      type: '2', // 2 = رحلة ذهاب فقط لتجنب الأخطاء
+      currency: 'USD',
+      hl: 'ar', 
+      api_key: SERPAPI_KEY,
+    };
 
-    let attempt = 0;
-    const maxAttempts = 2;
-    let finalError = null;
+    const response = await axios.get(serpApiUrl, { params });
+    const data = response.data;
 
-    while (attempt < maxAttempts) {
-      const userAgent = USER_AGENTS[attempt];
-      try {
-        // استخراج الـ accept-token و الـ cookies
-        const session = await getSessionFromBrowser(browser, userAgent);
-        
-        if (!session.token) {
-          throw new Error('لم يتم العثور على رمز التوثيق (accept-token).');
-        }
+    // دمج أفضل الرحلات والرحلات الأخرى
+    const rawFlights = [
+      ...(data?.best_flights ?? []),
+      ...(data?.other_flights ?? [])
+    ];
 
-        // 3. استخدام axios للقيام بعملية البحث لتسريع الأداء
-        const payload = {
-          search: {
-            segments: [
-              {
-                departure_airport: origin,
-                arrival_airport: destination,
-                departure_date: date
-              }
-            ],
-            passengers: { adults: 1, children: 0, infants: 0 },
-            cabin_class: "Economy"
-          }
-        };
-
-        const response = await axios.post(
-          'https://api.sindibad.iq/api/v1/plp/flightsearch/start-search',
-          payload,
-          {
-            headers: {
-              'User-Agent': userAgent,
-              'Accept': 'application/json, text/plain, */*',
-              'Accept-Language': 'ar,en-US;q=0.9',
-              'Referer': 'https://sindibad.iq/',
-              'Origin': 'https://sindibad.iq',
-              'accept-token': session.token,
-              'Cookie': session.cookies,
-              'Content-Type': 'application/json'
-            },
-            timeout: 25000,
-          }
-        );
-
-        // تحويل البيانات (Data Mapping)
-        const rawData = response.data;
-        const flightsArray = rawData?.data?.flights || rawData?.flights || rawData?.data || [];
-        
-        if (!Array.isArray(flightsArray)) {
-          return res.json({ success: true, data: [] });
-        }
-
-        const mappedFlights = flightsArray.map((flight: any) => {
-          let airlineName = 'Unknown Airline';
-          if (flight.airline) {
-             airlineName = flight.airline.name || flight.airline;
-          } else if (flight.segments && flight.segments[0] && flight.segments[0].airline) {
-             airlineName = flight.segments[0].airline.name;
-          }
-      
-          let price = 0;
-          if (flight.price && typeof flight.price === 'object') {
-            price = flight.price.amount || flight.price.total || 0;
-          } else {
-            price = parseFloat(flight.price) || 0;
-          }
-      
-          const departureTime = flight.departureTime || (flight.segments && flight.segments[0]?.departureTime) || date;
-          const arrivalTime = flight.arrivalTime || (flight.segments && flight.segments[flight.segments.length - 1]?.arrivalTime) || date;
-          const duration = flight.duration || (flight.segments && flight.segments[0]?.duration) || '0h 0m';
-          
-          const flightId = flight.id || flight.flightId || `snd-${Date.now()}`;
-          const bookingLink = flight.bookingLink || flight.deepLink || `https://sindibad.iq/flights/book?flightId=${flightId}`;
-      
-          return {
-            airline: airlineName,
-            price: price,
-            departure: departureTime,
-            arrival: arrivalTime,
-            duration: duration,
-            link: bookingLink
-          };
-        });
-
-        return res.json({ success: true, data: mappedFlights });
-
-      } catch (error: any) {
-        attempt++;
-        finalError = error;
-        
-        // إعادة المحاولة عند حظر الـ 403
-        if (error.response && (error.response.status === 403 || error.response.status === 401)) {
-          if (attempt < maxAttempts) {
-            console.warn(`[SindibadProxy] 403 Blocked. Retrying with different User-Agent (Attempt ${attempt + 1})...`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            continue;
-          }
-        }
-        
-        break; // إنهاء المحاولات لباقي أنواع الأخطاء
-      }
+    if (rawFlights.length === 0) {
+       return res.json({ success: true, data: [] });
     }
 
-    // إرجاع رسالة خطأ في حالة الفشل النهائي
-    return res.status(500).json({
-      success: false,
-      message: 'فشل في جلب البيانات من المصدر بعد عدة محاولات.',
-      error: finalError?.message || 'Unknown error'
+    // Mapping: استخراج البيانات العميقة باستراتيجية (Fall-through)
+    const mappedFlights = rawFlights.map((flightItem: any) => {
+      
+      // 1. استخراج مقاطع الرحلة (Segments) بمسارات بديلة
+      const segments = 
+        flightItem?.flights ?? 
+        flightItem?.segments ?? 
+        (flightItem?.first_flight ? [flightItem.first_flight] : []);
+        
+      const firstSegment = segments[0] ?? {};
+      const lastSegment = segments[segments.length - 1] ?? {};
+
+      // 2. شركة الطيران وكود IATA
+      const airlineName = firstSegment?.airline ?? flightItem?.airline ?? 'Unknown Airline';
+      const flightNumber = firstSegment?.flight_number ?? flightItem?.flight_number ?? '';
+      const airlineCode = flightNumber.split(' ')?.[0] ?? ''; 
+      
+      // 3. السعر (التعامل مع الأسعار بالآلاف)
+      let price = flightItem?.price ?? 0;
+      if (price > 0 && price < 1000) {
+        price = price * 1000; // تحويل السعر الصغير (مثل 217) إلى (217000)
+      }
+      
+      // 4. محطات التوقف (Stops)
+      // نعتمد على layovers إن وجدت، وإلا نحسب من المقاطع لضمان عدم وجود undefined
+      let stops = 0;
+      if (Array.isArray(flightItem?.layovers)) {
+        stops = flightItem.layovers.length;
+      } else {
+        stops = Math.max((segments.length - 1), 0);
+      }
+
+      // 5. مدة الرحلة الإجمالية
+      let durationStr = '0h 0m';
+      const totalDuration = flightItem?.total_duration ?? flightItem?.duration;
+      if (typeof totalDuration === 'number') {
+        const hours = Math.floor(totalDuration / 60);
+        const mins = totalDuration % 60;
+        durationStr = `${hours}h ${mins}m`;
+      }
+
+      // 6. الأوقات (المغادرة والوصول) باستراتيجية مسارات متعددة
+      const rawDepartureTime = 
+        firstSegment?.departure_airport?.time ?? 
+        firstSegment?.departure?.time ?? 
+        firstSegment?.departure_time ??
+        flightItem?.departure_airport?.time ??
+        null;
+
+      const rawArrivalTime = 
+        lastSegment?.arrival_airport?.time ?? 
+        lastSegment?.arrival?.time ?? 
+        lastSegment?.arrival_time ??
+        flightItem?.arrival_airport?.time ??
+        null;
+
+      const departureTime = formatTime(rawDepartureTime);
+      const arrivalTime = formatTime(rawArrivalTime);
+
+      // 7. رابط الحجز (Booking Link)
+      let bookingLink = flightItem?.share_link ?? null;
+      if (!bookingLink && flightItem?.booking_token) {
+        bookingLink = `https://www.google.com/travel/flights/booking?tfs=${flightItem.booking_token}`;
+      }
+      const fallbackLink = `https://www.google.com/travel/flights?q=Flights+from+${origin}+to+${destination}+on+${date}`;
+      
+      return {
+        airline: airlineName,
+        airlineCode: airlineCode,
+        price: price,
+        stops: stops, // سيعود كرقم دائماً ولن يكون undefined
+        departure: departureTime,
+        arrival: arrivalTime,
+        duration: durationStr,
+        link: bookingLink ?? fallbackLink
+      };
     });
+
+    // Data Validation & Guard Clause: الفلترة الذكية للرحلات قبل إرسالها للواجهة
+    // نستبعد الرحلات الوهمية أو التي سعرها 0 أو الأوقات المفقودة تماماً
+    const validFlights = mappedFlights.filter(f => 
+      f.price > 0 && 
+      f.departure !== 'غير محدد' && 
+      f.arrival !== 'غير محدد'
+    );
+
+    return res.json({ success: true, data: validFlights });
 
   } catch (error: any) {
+    console.error('[GoogleFlights] Error:', error?.response?.data || error.message);
     return res.status(500).json({
       success: false,
-      message: 'حدث خطأ غير متوقع أثناء تهيئة المتصفح.',
-      error: error.message
+      message: 'فشل في جلب البيانات من المصدر.',
+      error: error?.response?.data?.error || error.message
     });
-  } finally {
-    // 4. إغلاق المتصفح فوراً في بلوك finally لمنع Memory Leaks
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (e) {
-        console.error('Error closing browser:', e);
-      }
-    }
   }
 }

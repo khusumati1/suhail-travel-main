@@ -3,7 +3,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Plane, Luggage, ChevronLeft, Zap, Info, MoveLeft } from 'lucide-react';
 import { Flight } from '../types';
-import { cn } from '@/lib/utils';
+import { cn, formatIQD } from '@/lib/utils';
 
 interface FlightResultCardProps {
   flight: Flight;
@@ -42,6 +42,11 @@ const AIRLINE_MAP: Record<string, { iata: string, name: string }> = {
 };
 
 const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, index }) => {
+  
+  // Data Sanitization: إذا كانت البيانات الأساسية مفقودة، لا تعرض الكارت
+  if (!flight || !flight.price || flight.price <= 0 || !flight.departureTime || flight.departureTime.includes('غير محدد')) {
+    return null;
+  }
   
   const mappedData = AIRLINE_MAP[flight.airlineCode || flight.airline];
   const airlineName = mappedData?.name || flight.airline;
@@ -82,7 +87,7 @@ const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, in
             <div className="w-8 h-8 bg-white rounded-lg p-1 border border-border/10 flex items-center justify-center shrink-0">
               <img 
                 src={logoUrl} 
-                alt={flight.airline} 
+                alt={airlineName} 
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/placeholder.svg';
@@ -94,9 +99,9 @@ const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, in
           
           <div className={cn(
             "px-2.5 py-1 rounded-full text-[10px] font-black tracking-tight",
-            flight.stops === 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-orange-500/10 text-orange-600"
+            (flight?.stops ?? 0) === 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-orange-500/10 text-orange-600"
           )}>
-            {flight.stops === 0 ? 'مباشر' : `${flight.stops} توقف`}
+            {(flight?.stops ?? 0) === 0 ? 'مباشر' : `${flight.stops} توقف`}
           </div>
         </div>
 
@@ -104,15 +109,15 @@ const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, in
         <div className="flex items-center justify-between relative px-1 py-1">
           {/* Departure */}
           <div className="text-right">
-            <p className="text-2xl font-black text-foreground tabular-nums leading-none tracking-tighter">{formatTime(flight.departureTime)}</p>
-            <p className="text-xs font-bold text-muted-foreground mt-1 tracking-tight">{flight.origin}</p>
+            <p className="text-2xl font-black text-foreground tabular-nums leading-none tracking-tighter">{formatTime(flight?.departureTime ?? flight?.departure)}</p>
+            <p className="text-xs font-bold text-muted-foreground mt-1 tracking-tight">{flight?.origin ?? 'N/A'}</p>
           </div>
 
           {/* Timeline Decoration */}
           <div className="flex-1 flex flex-col items-center gap-1.5 px-3 relative">
             <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground mb-1">
-              <span>{formatDurationReadable(flight.duration)}</span>
-              {flight.stops > 0 && <span className="w-1 h-1 rounded-full bg-orange-400" />}
+              <span>{formatDurationReadable(flight?.duration)}</span>
+              {(flight?.stops ?? 0) > 0 && <span className="w-1 h-1 rounded-full bg-orange-400" />}
             </div>
             <div className="w-full h-[1px] bg-border/40 relative flex items-center justify-center">
               <div className="absolute inset-0 border-t border-dashed border-border/60" />
@@ -128,8 +133,8 @@ const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, in
 
           {/* Arrival */}
           <div className="text-left">
-            <p className="text-2xl font-black text-foreground tabular-nums leading-none tracking-tighter">{formatTime(flight.arrivalTime)}</p>
-            <p className="text-xs font-bold text-muted-foreground mt-1 tracking-tight">{flight.destination}</p>
+            <p className="text-2xl font-black text-foreground tabular-nums leading-none tracking-tighter">{formatTime(flight?.arrivalTime ?? flight?.arrival)}</p>
+            <p className="text-xs font-bold text-muted-foreground mt-1 tracking-tight">{flight?.destination ?? 'N/A'}</p>
           </div>
         </div>
 
@@ -137,9 +142,9 @@ const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, in
         <div className="flex justify-end items-baseline gap-1 mt-1">
            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">السعر يبدأ من</span>
            <p className="text-xl font-black text-primary tabular-nums tracking-tighter">
-             {flight.price.toLocaleString()} 
+             {formatIQD(flight?.price)} 
              <span className="text-xs font-bold mr-1 text-primary">
-               {flight.currency === 'USD' ? 'دولار' : 'د.ع'}
+               د.ع
              </span>
            </p>
         </div>

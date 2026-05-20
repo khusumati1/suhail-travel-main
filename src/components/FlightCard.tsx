@@ -3,6 +3,7 @@ import React, { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Plane, Clock, ShieldCheck, ChevronRight } from 'lucide-react';
 import { Flight } from '../types';
+import { formatIQD } from '@/lib/utils';
 
 const AIRLINE_MAP: Record<string, { iata: string, name: string }> = {
   'IA': { iata: 'IA', name: 'الخطوط الجوية العراقية' },
@@ -38,6 +39,10 @@ interface FlightCardProps {
 }
 
 const FlightCard = forwardRef<HTMLDivElement, FlightCardProps>(({ flight, onClick, index }, ref) => {
+  
+  if (!flight || !flight.price || flight.price <= 0 || !flight.departureTime || flight.departureTime.includes('غير محدد')) {
+    return null;
+  }
   const formatTime = (time: string) => {
     try {
       if (!time) return '--:--';
@@ -63,7 +68,7 @@ const FlightCard = forwardRef<HTMLDivElement, FlightCardProps>(({ flight, onClic
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-secondary/50 rounded-xl p-2 flex items-center justify-center">
               <img 
-                src={`https://pics.avs.io/200/200/${AIRLINE_MAP[flight.airlineCode || flight.airline]?.iata || flight.airlineCode || flight.airline}.png`} 
+                src={`https://pics.avs.io/200/200/${AIRLINE_MAP[flight?.airlineCode || flight?.airline]?.iata || flight?.airlineCode || flight?.airline}.png`} 
                 className="w-full h-full object-contain" 
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/placeholder.svg';
@@ -71,25 +76,25 @@ const FlightCard = forwardRef<HTMLDivElement, FlightCardProps>(({ flight, onClic
               />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground leading-none">{AIRLINE_MAP[flight.airlineCode || flight.airline]?.name || flight.airline}</h3>
+              <h3 className="text-sm font-bold text-foreground leading-none">{AIRLINE_MAP[flight?.airlineCode || flight?.airline]?.name || flight?.airline}</h3>
               <p className="text-[10px] text-muted-foreground mt-1 uppercase font-semibold">
-                {flight.stops === 0 ? 'رحلة مباشرة' : `${flight.stops} توقف`}
+                {(flight?.stops ?? 0) === 0 ? 'رحلة مباشرة' : `${flight?.stops} توقف`}
               </p>
             </div>
           </div>
           <div className="text-left">
             <p className="text-[10px] text-muted-foreground font-medium">يبدأ من</p>
-            <p className="text-xl font-bold text-primary">{flight.price.toLocaleString()} <span className="text-[10px]">{flight.currency === 'USD' ? '$' : 'د.ع'}</span></p>
+            <p className="text-xl font-bold text-primary">{formatIQD(flight?.price)} <span className="text-[10px]">د.ع</span></p>
           </div>
         </div>
         <div className="flex justify-between relative px-2 items-center" dir="ltr">
-          <div className="text-center"><p className="text-lg font-bold">{formatTime(flight.departureTime)}</p></div>
+          <div className="text-center"><p className="text-lg font-bold">{formatTime(flight?.departureTime ?? flight?.departure)}</p></div>
           <div className="flex-1 flex flex-col items-center px-4">
              <div className="w-full h-[1px] bg-border relative flex items-center justify-center">
                 <Plane className="w-3 h-3 text-primary/40 absolute" />
              </div>
           </div>
-          <div className="text-center"><p className="text-lg font-bold">{formatTime(flight.arrivalTime)}</p></div>
+          <div className="text-center"><p className="text-lg font-bold">{formatTime(flight?.arrivalTime ?? flight?.arrival)}</p></div>
         </div>
         <div className="flex items-center justify-between pt-3 border-t border-border/40">
            <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase"><ShieldCheck className="w-3 h-3" /> أفضل سعر</div>
