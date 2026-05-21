@@ -136,9 +136,13 @@ class ApiService {
     console.log(`[ApiService] Flight search: ${origin} → ${destination} on ${date}`);
 
     try {
-      const response = await axios.post('/api/search-flights', { origin, destination, date });
+      const response = await axios.post(`${API_URL}/search-flights`, {
+        origin,
+        destination,
+        date
+      });
       
-      const responseData = response.data?.data || {};
+      const responseData = response.data?.data || response.data || {};
       
       // The exact path depends on the RapidAPI response structure. Usually it's in flights, itineraries, or data.
       let rawFlights = responseData.flights || responseData.itineraries || responseData.data || [];
@@ -150,19 +154,29 @@ class ApiService {
 
       for (const raw of rawFlights) {
         // Safe mapping using Adapter pattern
+        const firstLeg = raw.legs?.[0] || {};
+        const marketing = firstLeg.carriers?.marketing?.[0] || {};
+        
+        let durationStr = '0h 0m';
+        if (raw.duration) {
+          durationStr = typeof raw.duration === 'number' ? `${Math.floor(raw.duration / 60)}h ${raw.duration % 60}m` : String(raw.duration);
+        } else if (firstLeg.durationInMinutes) {
+          durationStr = `${Math.floor(firstLeg.durationInMinutes / 60)}h ${firstLeg.durationInMinutes % 60}m`;
+        }
+
         const flight: FlightOffer = {
           id: raw.id || Math.random().toString(36).substr(2, 9),
-          airline: raw.airline || raw.carrier || raw.legs?.[0]?.carriers?.marketing?.[0]?.name || 'Unknown Airline',
-          airlineCode: raw.airlineCode || raw.legs?.[0]?.carriers?.marketing?.[0]?.id || 'UN',
-          airlineLogo: raw.airlineLogo || raw.legs?.[0]?.carriers?.marketing?.[0]?.logoUrl || '',
-          departureTime: raw.departureTime || raw.departure_time || raw.legs?.[0]?.departure || '00:00',
-          arrivalTime: raw.arrivalTime || raw.arrival_time || raw.legs?.[0]?.arrival || '00:00',
+          airline: raw.airline || raw.carrier || marketing.name || 'Unknown Airline',
+          airlineCode: raw.airlineCode || marketing.id || 'UN',
+          airlineLogo: raw.airlineLogo || marketing.logoUrl || '',
+          departureTime: raw.departureTime || raw.departure_time || firstLeg.departure || '00:00',
+          arrivalTime: raw.arrivalTime || raw.arrival_time || firstLeg.arrival || '00:00',
           origin: origin,
           destination: destination,
-          duration: raw.duration || raw.legs?.[0]?.durationInMinutes ? `${Math.floor(raw.legs[0].durationInMinutes / 60)}h ${raw.legs[0].durationInMinutes % 60}m` : '0h 0m',
+          duration: durationStr,
           price: raw.price?.raw || raw.price || 0,
           currency: raw.currency || raw.price?.currency || 'USD',
-          stops: raw.stops !== undefined ? raw.stops : (raw.legs?.[0]?.stopCount || 0),
+          stops: raw.stops !== undefined ? raw.stops : (firstLeg.stopCount || 0),
           is_bookable: true,
         };
         flights.push(flight);
