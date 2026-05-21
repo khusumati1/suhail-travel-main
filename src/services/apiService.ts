@@ -124,69 +124,31 @@ const getRouteType = (o: string, d: string): 'domestic' | 'regional' | 'internat
 // ─── ApiService class ─────────────────────────────────────────────────────────
 class ApiService {
 
-  private syncAndValidateFlights(origin: string, destination: string, b2bFlights: FlightOffer[] = []) {
-    const routeType = getRouteType(origin, destination);
-    
-    const uniqueFlightsMap = new Map<string, FlightOffer>();
-    const finalFlights: FlightOffer[] = [];
-
-    if (b2bFlights && b2bFlights.length > 0) {
-      console.log('[ApiService] B2B Bridge injected flights:', b2bFlights.length);
-      
-      for (const f of b2bFlights) {
-        // Calculate scores for standard sorting
-        const durHours = parseInt(f.duration.split('h')[0] || '2');
-        const durMins = parseInt(f.duration.split('m')[0].split(' ').pop() || '0');
-        const totalMins = durHours * 60 + durMins;
-        
-        f.scoreCheapest = f.price;
-        f.scoreFastest = totalMins;
-        f.scoreBest = f.price + (totalMins * 500);
-
-        const key = f.airlineCode + f.departureTime;
-        if (!uniqueFlightsMap.has(key)) {
-          uniqueFlightsMap.set(key, f);
-          finalFlights.push(f);
-        }
-      }
-      
-      // Resort after injection
-      finalFlights.sort((a, b) => (a.scoreCheapest || 0) - (b.scoreCheapest || 0));
-    }
-
-    return {
-      success: true,
-      route_classification: routeType,
-      total_available_flights: finalFlights.length,
-      flights: finalFlights
-    };
-  }
-
   async searchFlights(params: any) {
     const origin      = String(params.origin      || '').trim().toUpperCase();
     const destination = String(params.destination || '').trim().toUpperCase();
-    const date        = String(params.departure_date || '').trim();
+    const date        = String(params.date || params.departure_date || '').trim();
 
     if (!origin || !destination || !date) {
       throw new Error('يرجى تحديد مطار الإقلاع والوصول وتاريخ السفر.');
     }
 
-    console.log(`[ApiService] Scraper search: ${origin} → ${destination} on ${date}`);
+    console.log(`[ApiService] Flight search: ${origin} → ${destination} on ${date}`);
 
     try {
-      let b2bFlights: FlightOffer[] = [];
-      const b2bRes = await axios.post('/api/search-flights', { origin, destination, date });
-      if (b2bRes.data?.success && b2bRes.data?.data) {
-        b2bFlights = b2bRes.data.data;
-      }
+      const response = await axios.post('http://72.61.179.63:4000/search-flights', { origin, destination, date });
+      
+      const flights: FlightOffer[] = response.data?.flights || [];
+      const routeType = getRouteType(origin, destination);
 
-      // Apply the middleware synchronization and validation
-      const result = this.syncAndValidateFlights(origin, destination, b2bFlights);
-
-      console.log(`[ApiService] Returning ${result.total_available_flights} valid flights.`);
-      return result;
+      return {
+        success: true,
+        route_classification: routeType,
+        total_available_flights: flights.length,
+        flights: flights
+      };
     } catch (error: any) {
-      console.error('[ApiService] Scraper search failed:', error);
+      console.error('[ApiService] Flight search failed:', error);
       const msg = error.response?.data?.error || error.message || 'عذراً، خطوط الاتصال مشغولة حالياً، يرجى إعادة المحاولة.';
       throw new Error(msg);
     }
