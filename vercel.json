@@ -4,5 +4,10 @@
       "source": "/api/search-flights",
       "destination": "http://72.61.179.63:4000/search-flights"
     }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
