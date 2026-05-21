@@ -141,7 +141,11 @@ class ApiService {
       const responseData = response.data?.data || {};
       
       // The exact path depends on the RapidAPI response structure. Usually it's in flights, itineraries, or data.
-      const rawFlights = responseData.flights || responseData.itineraries || responseData.data || [];
+      let rawFlights = responseData.flights || responseData.itineraries || responseData.data || [];
+      if (!Array.isArray(rawFlights)) {
+        // If the API returns an object with nested arrays, we try to extract it or fallback to empty array
+        rawFlights = Object.values(rawFlights).find(Array.isArray) || [];
+      }
       const flights: FlightOffer[] = [];
 
       for (const raw of rawFlights) {
