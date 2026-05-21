@@ -39,17 +39,9 @@ interface FlightCardProps {
 }
 
 const FlightCard = forwardRef<HTMLDivElement, FlightCardProps>(({ flight, onClick, index }, ref) => {
-  
-  if (!flight || !flight.price || flight.price <= 0 || !flight.departureTime || flight.departureTime.includes('غير محدد')) {
-    return null;
-  }
   const formatTime = (time: string) => {
-    try {
-      if (!time) return '--:--';
-      const parts = time.split(' ');
-      if (parts.length > 1) return parts[1].substring(0, 5);
-      return time.substring(0, 5);
-    } catch { return time; }
+    if (!time) return '--:--';
+    return time;
   };
 
   return (
@@ -84,7 +76,7 @@ const FlightCard = forwardRef<HTMLDivElement, FlightCardProps>(({ flight, onClic
           </div>
           <div className="text-left">
             <p className="text-[10px] text-muted-foreground font-medium">يبدأ من</p>
-            <p className="text-xl font-bold text-primary">{formatIQD(flight?.price)} <span className="text-[10px]">د.ع</span></p>
+            <p className="text-xl font-bold text-primary" dir="rtl">{flight?.price}</p>
           </div>
         </div>
         <div className="flex justify-between relative px-2 items-center" dir="ltr">

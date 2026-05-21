@@ -43,25 +43,18 @@ const AIRLINE_MAP: Record<string, { iata: string, name: string }> = {
 
 const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, index }) => {
   
-  // Data Sanitization: إذا كانت البيانات الأساسية مفقودة، لا تعرض الكارت
-  if (!flight || !flight.price || flight.price <= 0 || !flight.departureTime || flight.departureTime.includes('غير محدد')) {
-    return null;
-  }
-  
   const mappedData = AIRLINE_MAP[flight.airlineCode || flight.airline];
   const airlineName = mappedData?.name || flight.airline;
   const iataCode = mappedData?.iata || flight.airlineCode || flight.airline;
   const logoUrl = `https://pics.avs.io/200/200/${iataCode}.png`;
   
   /**
-   * Extract HH:mm from date string "YYYY-MM-DD HH:mm"
+   * The backend now returns beautifully formatted time like '10:30 ص'.
+   * We just need to return it directly.
    */
   const formatTime = (dateStr: string) => {
     if (!dateStr) return '--:--';
-    const parts = dateStr.trim().split(' ');
-    if (parts.length > 1) return parts[1].substring(0, 5); 
-    const timeMatch = dateStr.match(/\d{2}:\d{2}/);
-    return timeMatch ? timeMatch[0] : dateStr.substring(0, 5);
+    return dateStr;
   };
 
   /**
@@ -141,11 +134,8 @@ const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, in
         {/* Row 3: Price Info */}
         <div className="flex justify-end items-baseline gap-1 mt-1">
            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">السعر يبدأ من</span>
-           <p className="text-xl font-black text-primary tabular-nums tracking-tighter">
-             {formatIQD(flight?.price)} 
-             <span className="text-xs font-bold mr-1 text-primary">
-               د.ع
-             </span>
+           <p className="text-xl font-black text-primary tracking-tighter" dir="rtl">
+             {flight?.price}
            </p>
         </div>
 

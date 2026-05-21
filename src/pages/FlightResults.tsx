@@ -297,41 +297,7 @@ const FlightResults = () => {
           )}
         </AnimatePresence>
 
-        {/* Sorting Tabs */}
-        {offers.length > 0 && !loading && (
-          <div className="grid grid-cols-3 gap-2 mb-4 bg-card border border-border/40 p-1.5 rounded-[24px] shadow-sm">
-            {TABS.map(tab => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex flex-col items-center justify-center py-3.5 px-2 rounded-[18px] transition-all relative overflow-hidden ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/10'
-                      : 'hover:bg-secondary/50 text-foreground'
-                  }`}
-                >
-                  <span className={`text-[10px] font-black tracking-tight ${isActive ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>
-                    {tab.label}
-                  </span>
-                  <span className="text-[13px] font-black tracking-tighter mt-1 tabular-nums">
-                    {tab.value}
-                  </span>
-                  <span className={`text-[9px] font-bold mt-0.5 opacity-60 ${isActive ? 'text-primary-foreground/75' : 'text-muted-foreground'}`}>
-                    {tab.subtitle}
-                  </span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTabIndicator"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/40 rounded-t-full"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
+
 
         {/* Results count badge */}
         {filteredSortedOffers.length > 0 && !loading && (
