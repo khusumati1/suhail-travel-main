@@ -138,7 +138,32 @@ class ApiService {
     try {
       const response = await axios.post('/api/search-flights', { origin, destination, date });
       
-      const flights: FlightOffer[] = response.data?.flights || [];
+      const responseData = response.data?.data || {};
+      
+      // The exact path depends on the RapidAPI response structure. Usually it's in flights, itineraries, or data.
+      const rawFlights = responseData.flights || responseData.itineraries || responseData.data || [];
+      const flights: FlightOffer[] = [];
+
+      for (const raw of rawFlights) {
+        // Safe mapping using Adapter pattern
+        const flight: FlightOffer = {
+          id: raw.id || Math.random().toString(36).substr(2, 9),
+          airline: raw.airline || raw.carrier || raw.legs?.[0]?.carriers?.marketing?.[0]?.name || 'Unknown Airline',
+          airlineCode: raw.airlineCode || raw.legs?.[0]?.carriers?.marketing?.[0]?.id || 'UN',
+          airlineLogo: raw.airlineLogo || raw.legs?.[0]?.carriers?.marketing?.[0]?.logoUrl || '',
+          departureTime: raw.departureTime || raw.departure_time || raw.legs?.[0]?.departure || '00:00',
+          arrivalTime: raw.arrivalTime || raw.arrival_time || raw.legs?.[0]?.arrival || '00:00',
+          origin: origin,
+          destination: destination,
+          duration: raw.duration || raw.legs?.[0]?.durationInMinutes ? `${Math.floor(raw.legs[0].durationInMinutes / 60)}h ${raw.legs[0].durationInMinutes % 60}m` : '0h 0m',
+          price: raw.price?.raw || raw.price || 0,
+          currency: raw.currency || raw.price?.currency || 'USD',
+          stops: raw.stops !== undefined ? raw.stops : (raw.legs?.[0]?.stopCount || 0),
+          is_bookable: true,
+        };
+        flights.push(flight);
+      }
+
       const routeType = getRouteType(origin, destination);
 
       return {
