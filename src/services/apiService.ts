@@ -136,7 +136,7 @@ class ApiService {
     console.log(`[ApiService] Flight search: ${origin} → ${destination} on ${date}`);
 
     try {
-      const response = await axios.post('http://72.61.179.63:4000/search-flights', { origin, destination, date });
+      const response = await axios.post('/api/search-flights', { origin, destination, date });
       
       const flights: FlightOffer[] = response.data?.flights || [];
       const routeType = getRouteType(origin, destination);

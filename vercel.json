@@ -1,10 +1,8 @@
 {
-  "functions": {
-    "api/**/*.ts": {
-      "includeFiles": "node_modules/puppeteer-extra-plugin-stealth/evasions/**"
-    }
-  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/search-flights",
+      "destination": "http://72.61.179.63:4000/search-flights"
+    }
   ]
 }
