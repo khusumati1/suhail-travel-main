@@ -195,16 +195,22 @@ const FlightResults = () => {
           {/* Compact search summary */}
           <div
             onClick={() => setShowSearchForm(!showSearchForm)}
-            className="flex-1 flex items-center justify-center gap-2 bg-secondary/50 rounded-2xl py-2 px-4 border border-border/10 cursor-pointer active:scale-95 transition-transform"
+            className="flex-1 flex items-center justify-center gap-2 bg-secondary/50 rounded-2xl py-2 px-3 border border-border/10 cursor-pointer active:scale-95 transition-transform"
           >
-            <p className="text-[11px] font-black tracking-tight leading-none">
-              {currentSearch?.origin} ✈️ {currentSearch?.destination}
-              <span className="mx-2 text-muted-foreground/40">|</span>
-              {currentSearch?.departure_date?.split('-')?.slice(1)?.join('/')}
-              <span className="mx-2 text-muted-foreground/40">|</span>
-              {currentSearch?.passengers?.adults || 1} مسافر
+            <p className="text-[11px] font-black tracking-tight leading-none text-center">
+              <span className="text-foreground">{currentSearch?.origin}</span>
+              <span className="mx-1.5 text-primary">✈</span>
+              <span className="text-foreground">{currentSearch?.destination}</span>
+              <span className="mx-2 text-muted-foreground/30">•</span>
+              <span className="text-muted-foreground">
+                {currentSearch?.departure_date
+                  ? new Date(currentSearch.departure_date).toLocaleDateString('ar-IQ', { day: 'numeric', month: 'short' })
+                  : ''}
+              </span>
+              <span className="mx-2 text-muted-foreground/30">•</span>
+              <span className="text-muted-foreground">{currentSearch?.passengers?.adults || 1} مسافر</span>
             </p>
-            <Pencil className="w-3 h-3 text-primary" />
+            <Pencil className="w-3 h-3 text-primary shrink-0" />
           </div>
 
           <div className="w-10" />
@@ -301,14 +307,17 @@ const FlightResults = () => {
 
         {/* Results count badge */}
         {filteredSortedOffers.length > 0 && !loading && (
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-black text-muted-foreground">
-              {filteredSortedOffers.length} رحلة متاحة
-            </p>
-            {filteredSortedOffers.length < offers.length && (
-              <p className="text-[10px] font-bold text-primary">
-                (مُصفّى من {offers.length})
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-[12px] font-black text-foreground">
+                {filteredSortedOffers.length} رحلة متاحة
               </p>
+            </div>
+            {filteredSortedOffers.length < offers.length && (
+              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                مُصفّى من {offers.length}
+              </span>
             )}
           </div>
         )}

@@ -10,8 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "scraper-service": "cd scraper-service && npm run dev"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@capacitor/preferences": "^8.0.1",

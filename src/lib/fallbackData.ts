@@ -1,4 +1,5 @@
-// This file has been removed to eliminate fake/fallback data.
-// All flight results must now come from verified production APIs.
+// This file has been deprecated.
+// All flight and hotel data must come from the API.
 export const fallbackFlights = [];
 export const fallbackPlaces = [];
+export const fallbackHotels = [];

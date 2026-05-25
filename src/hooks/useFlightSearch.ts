@@ -16,27 +16,23 @@ export interface SearchParams {
   cabin_class?: string;
 }
 
-
-
 export function useFlightSearch() {
-  const [offers, setOffers] = useState<FlightOffer[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [offers, setOffers]     = useState<FlightOffer[]>([]);
+  const [loading, setLoading]   = useState(false);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]       = useState<string | null>(null);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startProgressSimulation = (from: number, to: number, durationMs: number) => {
     if (progressTimer.current) clearInterval(progressTimer.current);
-    const steps = 20;
+    const steps     = 20;
     const increment = (to - from) / steps;
-    const interval = durationMs / steps;
-    let current = from;
+    const interval  = durationMs / steps;
+    let current     = from;
     progressTimer.current = setInterval(() => {
       current = Math.min(current + increment, to);
       setProgress(Math.round(current));
-      if (current >= to && progressTimer.current) {
-        clearInterval(progressTimer.current);
-      }
+      if (current >= to && progressTimer.current) clearInterval(progressTimer.current);
     }, interval);
   };
 
@@ -46,37 +42,30 @@ export function useFlightSearch() {
     setOffers([]);
     setProgress(5);
 
-    // Simulate progress: 5% → 60% during first API call (~3s)
-    startProgressSimulation(5, 60, 3000);
+    startProgressSimulation(5, 85, 5000);
 
     try {
-      // Direct search attempt via ScraperAPI
       const data = await apiService.searchFlights(params);
 
+      if (progressTimer.current) clearInterval(progressTimer.current);
+
+      // ✅ Accept both real and mock flights (mock has isMock:true)
       if (data.flights && data.flights.length > 0) {
-        if (progressTimer.current) clearInterval(progressTimer.current);
         setProgress(100);
         setOffers(data.flights);
-        setLoading(false);
-        return; // Success
       } else {
-        throw new Error('لا تتوفر رحلات طيران');
+        // API returned success but zero flights — show friendly message
+        setError('لا توجد رحلات متاحة لهذا المسار في التاريخ المحدد. يرجى تجربة تاريخ آخر.');
       }
     } catch (err: any) {
       console.warn('[useFlightSearch] Search failed:', err.message);
-
       if (progressTimer.current) clearInterval(progressTimer.current);
+      setError('عذراً، فشل الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+    } finally {
       setLoading(false);
-      const msg = err.response?.data?.error || err.message || 'عذراً، لا توجد رحلات متاحة لهذا المسار في التاريخ المحدد.';
-      setError(msg.includes('رحلات طيران') ? 'عذراً، لا توجد رحلات متاحة لهذا المسار في التاريخ المحدد. يرجى تجربة تاريخ آخر.' : msg);
+      setProgress(100);
     }
   }, []);
 
-  return {
-    offers,
-    loading,
-    progress,
-    error,
-    searchFlights,
-  };
+  return { offers, loading, progress, error, searchFlights };
 }

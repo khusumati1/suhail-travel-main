@@ -1,7 +1,7 @@
 // src/components/FlightResultCard.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plane, Luggage, ChevronLeft, Zap, Info, MoveLeft } from 'lucide-react';
+import { Plane, ChevronLeft, Clock } from 'lucide-react';
 import { Flight } from '../types';
 import { cn, formatIQD } from '@/lib/utils';
 
@@ -11,139 +11,270 @@ interface FlightResultCardProps {
   index: number;
 }
 
-/**
- * Mapping for internal provider codes to standard IATA codes and Arabic names
- */
-const AIRLINE_MAP: Record<string, { iata: string, name: string }> = {
-  'IA': { iata: 'IA', name: 'الخطوط الجوية العراقية' },
-  'AMD': { iata: 'IA', name: 'الخطوط الجوية العراقية' },
-  'RJ': { iata: 'RJ', name: 'الملكية الأردنية' },
-  'TRP': { iata: 'RJ', name: 'الملكية الأردنية' },
-  'FZ': { iata: 'FZ', name: 'فلاي دبي' },
-  'FZE': { iata: 'FZ', name: 'فلاي دبي' },
-  'MS': { iata: 'MS', name: 'مصر للطيران' },
-  'UBD': { iata: 'MS', name: 'مصر للطيران' },
-  'G9': { iata: 'G9', name: 'العربية للطيران' },
-  'ABY': { iata: 'G9', name: 'العربية للطيران' },
-  'TK': { iata: 'TK', name: 'الخطوط التركية' },
-  'QR': { iata: 'QR', name: 'الخطوط القطرية' },
-  'EK': { iata: 'EK', name: 'طيران الإمارات' },
-  'UAE': { iata: 'EK', name: 'طيران الإمارات' },
-  'EY': { iata: 'EY', name: 'الاتحاد للطيران' },
-  'SV': { iata: 'SV', name: 'الخطوط السعودية' },
-  'KU': { iata: 'KU', name: 'الخطوط الكويتية' },
-  'GF': { iata: 'GF', name: 'طيران الخليج' },
-  'OV': { iata: 'OV', name: 'طيران السلام' },
-  'WY': { iata: 'WY', name: 'الطيران العماني' },
-  'ME': { iata: 'ME', name: 'طيران الشرق الأوسط' },
-  'PC': { iata: 'PC', name: 'طيران بيغاسوس' },
-  'SQ': { iata: 'SQ', name: 'الخطوط السنغافورية' },
-  'SIA': { iata: 'SQ', name: 'الخطوط السنغافورية' }
+// ─── Extended airline map (Middle East + Iran + Iraq routes) ─────────────────
+const AIRLINE_MAP: Record<string, { iata: string; name: string }> = {
+  // Iraqi
+  'IA':  { iata: 'IA',  name: 'الخطوط الجوية العراقية' },
+  'IF':  { iata: 'IF',  name: 'فلاي بغداد' },
+  // Iranian
+  'IR':  { iata: 'IR',  name: 'إيران إير' },
+  'W5':  { iata: 'W5',  name: 'ماهان إير' },
+  'EP':  { iata: 'EP',  name: 'إيران أسمان' },
+  'B9':  { iata: 'B9',  name: 'إيران إير تورز' },
+  'QB':  { iata: 'QB',  name: 'قشم إير' },
+  'RV':  { iata: 'RV',  name: 'كاسبيان إيرلاينز' },
+  'I7':  { iata: 'I7',  name: 'طيران إيرانشهر' },
+  'ZV':  { iata: 'ZV',  name: 'طيران إيراني' },
+  // Gulf
+  'FZ':  { iata: 'FZ',  name: 'فلاي دبي' },
+  'EK':  { iata: 'EK',  name: 'طيران الإمارات' },
+  'EY':  { iata: 'EY',  name: 'الاتحاد للطيران' },
+  'QR':  { iata: 'QR',  name: 'الخطوط القطرية' },
+  'GF':  { iata: 'GF',  name: 'طيران الخليج' },
+  'KU':  { iata: 'KU',  name: 'الخطوط الكويتية' },
+  'WY':  { iata: 'WY',  name: 'الطيران العُماني' },
+  // Other
+  'RJ':  { iata: 'RJ',  name: 'الملكية الأردنية' },
+  'MS':  { iata: 'MS',  name: 'مصر للطيران' },
+  'TK':  { iata: 'TK',  name: 'الخطوط التركية' },
+  'SV':  { iata: 'SV',  name: 'الخطوط السعودية' },
+  'G9':  { iata: 'G9',  name: 'العربية للطيران' },
+  'OV':  { iata: 'OV',  name: 'طيران السلام' },
+  'ME':  { iata: 'ME',  name: 'طيران الشرق الأوسط' },
+  'PC':  { iata: 'PC',  name: 'طيران بيغاسوس' },
+  'SQ':  { iata: 'SQ',  name: 'الخطوط السنغافورية' },
+};
+
+// ─── Extended Airport Map ─────────────────────────────────────────────────────
+const AIRPORT_MAP: Record<string, string> = {
+  // Iraq
+  'BGW': 'بغداد (BGW)',
+  'EBL': 'أربيل (EBL)',
+  'BSR': 'البصرة (BSR)',
+  'ISU': 'السليمانية (ISU)',
+  'NJF': 'النجف (NJF)',
+  // Iran
+  'MHD': 'مشهد (MHD)',
+  'IKA': 'طهران (IKA)',
+  'THR': 'طهران - مهرآباد (THR)',
+  'SYZ': 'شيراز (SYZ)',
+  'IFN': 'أصفهان (IFN)',
+  'TBZ': 'تبريز (TBZ)',
+  'AWZ': 'الأهواز (AWZ)',
+  // Lebanon & Syria & Jordan
+  'BEY': 'بيروت (BEY)',
+  'DAM': 'دمشق (DAM)',
+  'AMM': 'عمان (AMM)',
+  // Gulf
+  'DXB': 'دبي (DXB)',
+  'SHJ': 'الشارقة (SHJ)',
+  'AUH': 'أبوظبي (AUH)',
+  'DOH': 'الدوحة (DOH)',
+  'KWI': 'الكويت (KWI)',
+  'BAH': 'البحرين (BAH)',
+  'MCT': 'مسقط (MCT)',
+  // KSA
+  'JED': 'جدة (JED)',
+  'RUH': 'الرياض (RUH)',
+  'MED': 'المدينة المنورة (MED)',
+  'DMM': 'الدمام (DMM)',
+  // Turkey
+  'IST': 'إسطنبول (IST)',
+  'SAW': 'صبيحة كوكجن (SAW)',
+  'AYT': 'أنطاليا (AYT)',
+  // Egypt
+  'CAI': 'القاهرة (CAI)',
+  'ALY': 'الإسكندرية (ALY)',
+  'SSH': 'شرم الشيخ (SSH)'
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const formatTimeReadable = (dateStr: string): string => {
+  if (!dateStr) return '--:--';
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    const h      = d.getHours();
+    const m      = d.getMinutes();
+    const period = h < 12 ? 'ص' : 'م';
+    const h12    = h % 12 === 0 ? 12 : h % 12;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+  }
+  return dateStr;
+};
+
+const formatDateLabel = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('ar-IQ', { weekday: 'short', day: 'numeric', month: 'short' });
+};
+
+const formatDurationAr = (durationStr: string): string => {
+  if (!durationStr || durationStr === '—') return '—';
+  return durationStr.replace(/(\d+)h/, '$1س').replace(/(\d+)m/, ' $1د').trim();
+};
+
+// ─── Color palette per airline code ──────────────────────────────────────────
+const AIRLINE_COLORS: Record<string, string> = {
+  'IA': '#006633', 'IF': '#1a4fa0', 'IR': '#005faf',
+  'W5': '#c8102e', 'B9': '#e8851b', 'QB': '#6d4c9b',
+  'RV': '#0057a8', 'EP': '#1b7340', 'FZ': '#e5382e',
+  'EK': '#c8102e', 'EY': '#b5914f', 'QR': '#5c0632',
+  'GF': '#4a154b', 'KU': '#006e51', 'RJ': '#00427c',
+  'MS': '#1b75bc', 'TK': '#e30a17', 'SV': '#006837',
+  'G9': '#ff6600', 'FZE': '#e5382e',
 };
 
 const FlightResultCard: React.FC<FlightResultCardProps> = ({ flight, onClick, index }) => {
-  
-  const mappedData = AIRLINE_MAP[flight.airlineCode || flight.airline];
-  const airlineName = mappedData?.name || flight.airline;
-  const iataCode = mappedData?.iata || flight.airlineCode || flight.airline;
-  const logoUrl = `https://pics.avs.io/200/200/${iataCode}.png`;
-  
-  /**
-   * The backend now returns beautifully formatted time like '10:30 ص'.
-   * We just need to return it directly.
-   */
-  const formatTime = (dateStr: string) => {
-    if (!dateStr) return '--:--';
-    return dateStr;
-  };
+  // ── Schema validation / safe access ──────────────────────────────────────
+  const code        = (flight?.airlineCode || '').toUpperCase();
+  const mappedData  = AIRLINE_MAP[code];
+  const airlineName = mappedData?.name || flight?.airline || 'شركة طيران';
+  const iataCode    = mappedData?.iata  || code || 'UN';
+  const accentColor = AIRLINE_COLORS[iataCode] || '#7c3aed';
 
-  /**
-   * Return the duration string directly as it is already formatted by the backend
-   */
-  const formatDurationReadable = (durationStr: string) => {
-    return durationStr || 'مباشر';
-  };
+  // Use avs.io for logos (supports IATA codes)
+  const logoUrl = `https://pics.avs.io/200/200/${iataCode}.png`;
+
+  const depTime   = formatTimeReadable(flight?.departureTime ?? '');
+  const arrTime   = formatTimeReadable(flight?.arrivalTime   ?? '');
+  const dateLabel = formatDateLabel(flight?.departureTime    ?? '');
+  const duration  = formatDurationAr(flight?.duration        ?? '');
+  const stops     = flight?.stops ?? 0;
+  const isDirect  = stops === 0;
+  const price     = typeof flight?.price === 'number' ? flight.price : 0;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.3 }}
+      transition={{ delay: index * 0.07, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       onClick={onClick}
-      className="bg-card rounded-[24px] p-4 mb-3 border border-border/40 shadow-sm active:scale-[0.98] transition-all duration-200 overflow-hidden relative"
+      className="relative mb-3 rounded-3xl overflow-hidden cursor-pointer group"
       dir="rtl"
     >
-      <div className="flex flex-col gap-4">
-        {/* Row 1: Airline & Tags */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2 max-w-[70%]">
-            <div className="w-8 h-8 bg-white rounded-lg p-1 border border-border/10 flex items-center justify-center shrink-0">
-              <img 
-                src={logoUrl} 
-                alt={airlineName} 
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/placeholder.svg';
-                }}
-              />
-            </div>
-            <h3 className="text-sm font-bold text-foreground truncate leading-none">{airlineName}</h3>
-          </div>
-          
-          <div className={cn(
-            "px-2.5 py-1 rounded-full text-[10px] font-black tracking-tight",
-            (flight?.stops ?? 0) === 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-orange-500/10 text-orange-600"
-          )}>
-            {(flight?.stops ?? 0) === 0 ? 'مباشر' : `${flight.stops} توقف`}
-          </div>
-        </div>
+      <div className="bg-card border border-border/30 rounded-3xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
 
-        {/* Row 2: The Timeline (Core Content) */}
-        <div className="flex items-center justify-between relative px-1 py-1">
-          {/* Departure */}
-          <div className="text-right">
-            <p className="text-2xl font-black text-foreground tabular-nums leading-none tracking-tighter">{formatTime(flight?.departureTime ?? flight?.departure)}</p>
-            <p className="text-xs font-bold text-muted-foreground mt-1 tracking-tight">{flight?.origin ?? 'N/A'}</p>
-          </div>
+        {/* Top accent line colored by airline */}
+        <div
+          className="h-1 w-full"
+          style={{ background: `linear-gradient(90deg, ${accentColor}99, ${accentColor}, ${accentColor}99)` }}
+        />
 
-          {/* Timeline Decoration */}
-          <div className="flex-1 flex flex-col items-center gap-1.5 px-3 relative">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground mb-1">
-              <span>{formatDurationReadable(flight?.duration)}</span>
-              {(flight?.stops ?? 0) > 0 && <span className="w-1 h-1 rounded-full bg-orange-400" />}
-            </div>
-            <div className="w-full h-[1px] bg-border/40 relative flex items-center justify-center">
-              <div className="absolute inset-0 border-t border-dashed border-border/60" />
-              <div className="absolute bg-card px-1 transition-transform group-active:translate-x-[-10px]">
-                <Plane className="w-3.5 h-3.5 text-primary rotate-180" strokeWidth={3} />
+        <div className="p-4 pb-0">
+          {/* Row 1: Airline + badge */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center p-1 shrink-0 shadow-sm"
+                style={{ backgroundColor: accentColor + '18', border: `1.5px solid ${accentColor}33` }}
+              >
+                <img
+                  src={logoUrl}
+                  alt={airlineName}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement;
+                    el.style.display = 'none';
+                    const span = document.createElement('span');
+                    span.className = 'text-[10px] font-black';
+                    span.style.color = accentColor;
+                    span.textContent = iataCode;
+                    el.parentElement?.appendChild(span);
+                  }}
+                />
               </div>
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-1.5 h-1.5 rounded-full bg-border" />
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2">
-                 <MoveLeft className="w-3 h-3 text-muted-foreground/40" strokeWidth={3} />
+              <div>
+                <p className="text-[13px] font-bold text-foreground leading-tight">{airlineName}</p>
+                {dateLabel && (
+                  <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{dateLabel}</p>
+                )}
               </div>
             </div>
+
+            {/* Stops badge */}
+            <div className={cn(
+              'px-3 py-1 rounded-full text-[10px] font-black border',
+              isDirect
+                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                : 'bg-orange-500/10 text-orange-600 border-orange-500/20'
+            )}>
+              {isDirect ? '✈ مباشر' : `${stops} توقف`}
+            </div>
           </div>
 
-          {/* Arrival */}
-          <div className="text-left">
-            <p className="text-2xl font-black text-foreground tabular-nums leading-none tracking-tighter">{formatTime(flight?.arrivalTime ?? flight?.arrival)}</p>
-            <p className="text-xs font-bold text-muted-foreground mt-1 tracking-tight">{flight?.destination ?? 'N/A'}</p>
+          {/* Row 2: Flight timeline */}
+          <div className="flex items-center justify-between gap-2 py-2">
+            {/* Departure */}
+            <div className="text-right min-w-[80px]">
+              <p className="text-[26px] font-black text-foreground tabular-nums leading-none tracking-tighter">
+                {depTime.split(' ')[0]}
+              </p>
+              <p className="text-[11px] text-muted-foreground font-bold mt-1 max-w-[100px] truncate" title={AIRPORT_MAP[flight?.origin] || flight?.origin}>
+                {depTime.split(' ')[1] || ''} · {AIRPORT_MAP[flight?.origin] || flight?.origin || '---'}
+              </p>
+            </div>
+
+            {/* Center: duration + line */}
+            <div className="flex-1 flex flex-col items-center gap-1.5">
+              <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                <span>{duration}</span>
+              </div>
+              <div className="w-full relative flex items-center">
+                <div className="flex-1 h-px bg-border/50" />
+                <div
+                  className="mx-1 w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: accentColor + '18', border: `1.5px solid ${accentColor}44` }}
+                >
+                  <Plane className="w-3 h-3 -rotate-45" style={{ color: accentColor }} strokeWidth={2.5} />
+                </div>
+                <div className="flex-1 h-px bg-border/50" />
+              </div>
+              {!isDirect && (
+                <p className="text-[9px] font-bold text-orange-500">{stops} محطة توقف</p>
+              )}
+            </div>
+
+            {/* Arrival */}
+            <div className="text-left min-w-[80px]">
+              <p className="text-[26px] font-black text-foreground tabular-nums leading-none tracking-tighter">
+                {arrTime.split(' ')[0]}
+              </p>
+              <p className="text-[11px] text-muted-foreground font-bold mt-1 max-w-[100px] truncate text-left" title={AIRPORT_MAP[flight?.destination] || flight?.destination}>
+                {AIRPORT_MAP[flight?.destination] || flight?.destination || '---'} · {arrTime.split(' ')[1] || ''}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Row 3: Price Info */}
-        <div className="flex justify-end items-baseline gap-1 mt-1">
-           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">السعر يبدأ من</span>
-           <p className="text-xl font-black text-primary tracking-tighter" dir="rtl">
-             {flight?.price}
-           </p>
-        </div>
+        {/* Row 3: Price + Book button */}
+        <div className="flex items-center justify-between gap-3 mt-3 px-4 py-3 border-t border-border/20"
+             style={{ background: accentColor + '08' }}>
+          <div className="flex flex-col">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+              السعر / شخص
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span
+                className="text-xl font-black tabular-nums leading-none"
+                style={{ color: accentColor }}
+              >
+                {price > 0 ? formatIQD(price) : '---'}
+              </span>
+              <span className="text-[10px] font-bold text-muted-foreground">د.ع</span>
+            </div>
+          </div>
 
-        {/* Row 4: Action Button (Full Width Mobile) */}
-        <button className="w-full h-12 rounded-[16px] bg-primary text-primary-foreground text-sm font-black tracking-[0.1em] shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-[0.96] transition-all">
-          حجز الرحلة
-          <ChevronLeft className="w-4 h-4" strokeWidth={3} />
-        </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+            className="flex items-center gap-2 text-white px-5 py-2.5 rounded-2xl text-[13px] font-black shadow-lg active:scale-95 transition-all duration-150"
+            style={{ backgroundColor: accentColor, boxShadow: `0 4px 16px ${accentColor}44` }}
+          >
+            احجز الآن
+            <ChevronLeft className="w-3.5 h-3.5" strokeWidth={3} />
+          </button>
+        </div>
       </div>
     </motion.div>
   );

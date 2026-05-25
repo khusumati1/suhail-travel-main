@@ -95,7 +95,7 @@ const PassengerSheetContent = ({
 }) => (
   <div className="px-5 pt-2 pb-6">
     <div className="w-12 h-1.5 rounded-full bg-border mx-auto mb-5 lg:hidden" />
-    <h3 className="font-bold text-lg text-foreground mb-5">المسافرون والدرجة</h3>
+    <h3 tabIndex={-1} autoFocus className="font-bold text-lg text-foreground mb-5 focus:outline-none">المسافرون والدرجة</h3>
     <div className="space-y-1 divide-y divide-border/50">
       <Counter label="بالغون" subtitle="١٢ سنة وأكثر" value={adults} min={1} onChange={setAdults} />
       <Counter label="أطفال" subtitle="٢ - ١٢ سنة" value={children} onChange={setChildren} />
